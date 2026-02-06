@@ -25,7 +25,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1')
 
 
 # Application definition
@@ -77,10 +77,10 @@ WSGI_APPLICATION = 'Test_docker.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'mydb'),
+        'NAME': os.environ.get('POSTGRES_DB', 'django_db'),
         'USER': os.environ.get('POSTGRES_USER', 'myuser'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'mypassword'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
