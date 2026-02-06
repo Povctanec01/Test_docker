@@ -1,50 +1,40 @@
-FROM python:3.12-slim as builder
+# Используем официальный Python образ
+FROM python:3.11-slim
 
-WORKDIR /app
-
-# Установка зависимостей для сборки
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Копируем зависимости
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --user --no-cache-dir -r requirements.txt
-
-# Финальный образ
-FROM python:3.12-slim
-
-WORKDIR /app
-
-# Установка runtime зависимостей
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Копируем Python пакеты из builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
-
-# Создаем непривилегированного пользователя
-RUN useradd -m -u 1000 django && \
-    chown -R django:django /app
-USER django
-
-# Настройки Python
+# Устанавливаем переменные окружения
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PIP_NO_CACHE_DIR=1
 
-# Копируем код проекта
-COPY --chown=django:django . .
+# Устанавливаем рабочую директорию
+WORKDIR /app
 
-# Создаем директории для статики и медиа
-RUN mkdir -p staticfiles media && \
-    chown django:django staticfiles media
+# Устанавливаем системные зависимости
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 8000
+# Устанавливаем Poetry (если используете) или напрямую pip
+COPY requirements.txt /app/
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "Test_docker.wsgi:application"]
+# Устанавливаем зависимости Python
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+# Копируем проект
+COPY . /app/
+
+# Создаем статическую папку
+RUN mkdir -p /app/static /app/media
+
+# Создаем пользователя без привилегий
+RUN adduser --disabled-password --gecos '' django-user
+RUN chown -R django-user:django-user /app
+RUN chmod -R 755 /app/static
+USER django-user
+
+# Команда для запуска
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "your_project.wsgi:application"]
