@@ -5,6 +5,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
+ENV STATIC_ROOT=/app/static
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -15,9 +16,10 @@ RUN apt-get update \
         gcc \
         libpq-dev \
         curl \
+        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем Poetry (если используете) или напрямую pip
+# Копируем requirements.txt
 COPY requirements.txt /app/
 
 # Устанавливаем зависимости Python
@@ -27,14 +29,16 @@ RUN pip install --upgrade pip \
 # Копируем проект
 COPY . /app/
 
-# Создаем статическую папку
-RUN mkdir -p /app/static /app/media
+# Копируем entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Создаем пользователя без привилегий
-RUN adduser --disabled-password --gecos '' django-user
-RUN chown -R django-user:django-user /app
-RUN chmod -R 755 /app/static
+RUN adduser --disabled-password --gecos '' django-user \
+    && chown -R django-user:django-user /app
+
+# Переключаемся на пользователя
 USER django-user
 
-# Команда для запуска
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "your_project.wsgi:application"]
+# Entrypoint вместо CMD
+ENTRYPOINT ["/app/entrypoint.sh"]

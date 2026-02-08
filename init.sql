@@ -1,11 +1,22 @@
+-- init.sql - исправленная версия
 -- Создаем пользователя и БД
-CREATE USER myuser WITH PASSWORD 'mypassword';
-CREATE DATABASE django_db OWNER myuser;
+-- ВНИМАНИЕ: Этот файл выполняется от имени пользователя postgres
+-- и только при ПЕРВОЙ инициализации базы данных
 
--- Права для PostgreSQL 15+
-GRANT ALL ON SCHEMA public TO myuser;
-ALTER SCHEMA public OWNER TO myuser;
+-- Создаем пользователя (если еще не существует)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'myuser') THEN
+        CREATE USER myuser WITH PASSWORD 'mypassword';
+    END IF;
+END
+$$;
 
--- Тестовая таблица
-\c django_db
-CREATE TABLE IF NOT EXISTS test (id SERIAL PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW());
+-- Создаем БД (если еще не существует)
+SELECT 'CREATE DATABASE django_db OWNER myuser'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'django_db')\gexec
+
+-- Подключаемся к новой БД (эта команда не работает в init скриптах)
+-- Вместо этого даем права на публичную схему
+GRANT ALL PRIVILEGES ON DATABASE django_db TO myuser;
+ALTER DATABASE django_db OWNER TO myuser;

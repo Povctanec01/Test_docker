@@ -1,19 +1,20 @@
-version: '3.8'  # Добавляем версию
+version: '3.8'
 
 services:
   db:
     image: postgres:15-alpine
     container_name: django_db
     environment:
-      POSTGRES_PASSWORD: mypassword  # Только пароль
+      POSTGRES_PASSWORD: mypassword
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      POSTGRES_USER: postgres  # Явно указываем пользователя по умолчанию
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     networks:
-      - django_network  # Сеть должна быть определена ниже
+      - django_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,18 +25,9 @@ services:
   web:
     build: .
     container_name: django_web
-    command: >
-      sh -c "
-      echo 'Ожидание готовности БД...' &&
-      sleep 15 &&
-      python manage.py migrate &&
-      python manage.py collectstatic --noinput &&
-      gunicorn --bind 0.0.0.0:8000 Test_docker.wsgi:application
-      "
+    entrypoint: ["/app/entrypoint.sh"]  # Используем entrypoint вместо command
     volumes:
       - .:/app
-      - static_volume:/app/static
-      - media_volume:/app/media
     ports:
       - "8000:8000"
     environment:
@@ -47,6 +39,9 @@ services:
       SECRET_KEY: ${SECRET_KEY:-django-insecure-default-key-change-me}
       DEBUG: 1
       ALLOWED_HOSTS: localhost,127.0.0.1,web,0.0.0.0
+      DJANGO_SETTINGS_MODULE: Test_docker.settings
+      STATIC_ROOT: /app/static
+      STATIC_URL: /static/
     depends_on:
       db:
         condition: service_healthy
@@ -58,28 +53,18 @@ services:
     container_name: django_nginx
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - static_volume:/app/static
-      - media_volume:/app/media
-      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/app/static:ro
     depends_on:
       - web
     networks:
       - django_network
 
-# VOLUMES должны быть ОПРЕДЕЛЕНЫ
 volumes:
   postgres_data:
     driver: local
-  static_volume:
-    driver: local
-  media_volume:
-    driver: local
 
-# NETWORKS должны быть ОПРЕДЕЛЕНЫ в корне
 networks:
   django_network:
     driver: bridge
-    name: django_network  # Явное имя сети (опционально)
